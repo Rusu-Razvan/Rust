@@ -92,7 +92,7 @@ impl Terminal{
     }
 
     fn run(&mut self) {
-        let filename = "src/commands.txt"; // Replace with actual path
+        let filename = "src/commands.txt";
         let input = match fs::read_to_string(filename) {
             Ok(contents) => contents,
             Err(e) => {
