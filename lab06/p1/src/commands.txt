@@ -1,0 +1,21 @@
+ping
+ping abc
+
+count
+count a b c
+count a
+count a             b
+   count a             b   
+
+bruh
+
+times
+times
+times abc
+TIMeS
+
+hello
+    hello John Doe 
+
+
+stop
