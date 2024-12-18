@@ -1,3 +1,4 @@
+use chrono::Utc;
 use std::{collections::HashSet, io, thread, time::Duration};
 fn main() -> Result<(), ureq::Error> {
     let mut input = String::new();
@@ -57,12 +58,16 @@ fn main() -> Result<(), ureq::Error> {
                 if !seen_posts.contains(post_id) {
                     seen_posts.insert(post_id.to_string());
 
+                    let created_utc = post["data"]["created_utc"].as_f64().unwrap_or(0.0);
+                    let datetime = chrono::DateTime::<Utc>::from_timestamp(created_utc as i64, 0)
+                        .unwrap_or_else(Utc::now);
+
                     println!(
                         "Title: {}",
                         post["data"]["title"].as_str().unwrap_or("[No title]")
                     );
                     println!("Author: {}", post["data"]["author"]);
-                    println!("Creation date: {}", post["data"]["created_utc"]);
+                    println!("Creation date: {}", datetime.format("%Y-%m-%d %H:%M:%S"));
                     println!(
                         "URL: https://www.reddit.com{}",
                         post["data"]["permalink"].as_str().unwrap_or("#")
