@@ -4,10 +4,10 @@ fn main() -> Result<(), ureq::Error> {
     let mut subreddit: &str = "foxes"; //default subreddit
     let mut sort_order: &str = "hot"; //default sort order
     let mut refresh_time: i32 = 5; //default refresh time
-    let mut new_posts_found: bool = false;
+    let mut new_posts_found: bool;
 
     println!(
-        "Usage:[subreddit] [sort order(hot/new/top)] [refresh time] (Default: foxes, hot, 5 secs)"
+        "Usage:[subreddit] [sort order(hot/new/top)] [refresh time in sec] (Default: foxes, hot, 5 secs)"
     );
     println!("Enter the name of the subreddit you want to see: ");
 
@@ -26,6 +26,20 @@ fn main() -> Result<(), ureq::Error> {
     }
 
     let mut seen_posts: HashSet<String> = HashSet::new();
+
+    thread::spawn(move || {
+        let mut input = String::new();
+        loop {
+            match io::stdin().read_line(&mut input) {
+                Ok(_) => {
+                    if input.trim() == "exit" {
+                        std::process::exit(0);
+                    }
+                }
+                Err(error) => println!("error: {error}"),
+            }
+        }
+    });
 
     let url = format!("https://www.reddit.com/r/{}/{}.json", subreddit, sort_order);
 
@@ -63,12 +77,10 @@ fn main() -> Result<(), ureq::Error> {
             if !new_posts_found {
                 println!("No new posts found!");
             }
-            
         } else {
             println!("Error: {}", response.unwrap_err());
         }
 
         thread::sleep(Duration::from_secs(refresh_time as u64));
     }
-    Ok(())
 }
