@@ -2,11 +2,11 @@ use chrono::Utc;
 use serde_json::Value;
 use std::{collections::HashSet, io, thread, time::Duration};
 
-fn main() -> Result<(), ureq::Error> {
+fn main() -> Result<(), Box<ureq::Error>> {
     let mut input = String::new();
-    let mut subreddit: &str; 
-    let mut sort_order: &str;  
-    let mut refresh_time: i32;     
+    let mut subreddit: &str;
+    let mut sort_order: &str;
+    let mut refresh_time: i32;
     let mut new_posts_found: bool;
 
     loop {
@@ -16,7 +16,7 @@ fn main() -> Result<(), ureq::Error> {
         );
         println!("Enter the name of the subreddit you want to see: ");
 
-        input.clear(); 
+        input.clear();
         if io::stdin().read_line(&mut input).is_err() {
             println!("Error reading input");
             continue;
@@ -24,9 +24,8 @@ fn main() -> Result<(), ureq::Error> {
 
         input = input.trim().to_string();
 
-        
         {
-            let mut parts = input.split_whitespace(); 
+            let mut parts = input.split_whitespace();
             subreddit = parts.next().unwrap_or("foxes");
             sort_order = parts.next().unwrap_or("hot");
 
@@ -38,7 +37,7 @@ fn main() -> Result<(), ureq::Error> {
                     continue;
                 }
             }
-        } 
+        }
 
         if !["hot", "new", "top"].contains(&sort_order) {
             println!("Error: Invalid sort order. Valid values are: hot, new, top.");
@@ -61,7 +60,9 @@ fn main() -> Result<(), ureq::Error> {
 
         let json: Value = response.unwrap().into_json().unwrap_or(Value::Null);
 
-        if json["data"]["children"].is_null() || json["data"]["children"].as_array().unwrap().is_empty() {
+        if json["data"]["children"].is_null()
+            || json["data"]["children"].as_array().unwrap().is_empty()
+        {
             println!("Error: Invalid subreddit or Reddit API issue.");
             continue;
         }
@@ -75,10 +76,8 @@ fn main() -> Result<(), ureq::Error> {
     thread::spawn(move || {
         let mut input = String::new();
         loop {
-            if io::stdin().read_line(&mut input).is_ok() {
-                if input.trim() == "exit" {
-                    std::process::exit(0);
-                }
+            if io::stdin().read_line(&mut input).is_ok() && input.trim() == "exit" {
+                std::process::exit(0);
             }
         }
     });
