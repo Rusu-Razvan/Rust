@@ -23,7 +23,14 @@ fn main() -> Result<(), ureq::Error> {
 
             sort_order = parts.next().unwrap_or("hot");
 
-            refresh_time = parts.next().unwrap_or("5").parse::<i32>().unwrap_or(5);
+            let refresh_time_input = parts.next().unwrap_or("5");
+            match refresh_time_input.parse::<i32>() {
+                Ok(value) if value > 0 => refresh_time = value,
+                _ => {
+                    println!("Error: Invalid refresh time. Please enter a positive integer.");
+                    return Ok(());
+                }
+            }
         }
         Err(error) => println!("error: {error}"),
     }
@@ -37,9 +44,27 @@ fn main() -> Result<(), ureq::Error> {
 
     let response = ureq::get(&url).set("User-Agent", "reddit client").call();
 
-    if response?.status() == 404 {
-        println!("Error: The subreddit '{}' does not exist.", subreddit);
+    if response.is_err() {
+        println!("Error: Request failed due to network or server issues.");
         return Ok(());
+    }
+
+    let status = response.as_ref().unwrap().status();
+
+    if status == 404 {
+        println!("Error: Invalid subreddit or Reddit API issue.");
+        return Ok(());
+    }
+
+    if response.is_ok() {
+        let json: Value = response.unwrap().into_json().unwrap_or(Value::Null);
+
+        if json["data"]["children"].is_null()
+            || json["data"]["children"].as_array().unwrap().is_empty()
+        {
+            println!("Error: Invalid subreddit or Reddit API issue.");
+            return Ok(());
+        }
     }
 
     let mut seen_posts: HashSet<String> = HashSet::new();
