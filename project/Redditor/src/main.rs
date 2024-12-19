@@ -1,26 +1,33 @@
 use chrono::Utc;
 use serde_json::Value;
 use std::{collections::HashSet, io, thread, time::Duration};
+
 fn main() -> Result<(), ureq::Error> {
     let mut input = String::new();
-    let mut subreddit: &str = "foxes"; //default subreddit
-    let mut sort_order: &str = "hot"; //default sort order
-    let mut refresh_time: i32 = 5; //default refresh time
+    let mut subreddit: &str; 
+    let mut sort_order: &str;  
+    let mut refresh_time: i32;     
     let mut new_posts_found: bool;
 
-    println!(
-        "Usage:[subreddit] [sort order(hot/new/top)] [refresh time in sec] (Default: foxes, hot, 5 secs)"
-    );
-    println!("Enter the name of the subreddit you want to see: ");
+    loop {
+        println!();
+        println!(
+            "Usage:[subreddit] [sort order(hot/new/top)] [refresh time in sec] (Default: foxes, hot, 5 secs)"
+        );
+        println!("Enter the name of the subreddit you want to see: ");
 
-    match io::stdin().read_line(&mut input) {
-        Ok(_) => {
-            input = input.trim().to_string();
+        input.clear(); 
+        if io::stdin().read_line(&mut input).is_err() {
+            println!("Error reading input");
+            continue;
+        }
 
-            let mut parts = input.split_whitespace();
+        input = input.trim().to_string();
 
+        
+        {
+            let mut parts = input.split_whitespace(); 
             subreddit = parts.next().unwrap_or("foxes");
-
             sort_order = parts.next().unwrap_or("hot");
 
             let refresh_time_input = parts.next().unwrap_or("5");
@@ -28,57 +35,50 @@ fn main() -> Result<(), ureq::Error> {
                 Ok(value) if value > 0 => refresh_time = value,
                 _ => {
                     println!("Error: Invalid refresh time. Please enter a positive integer.");
-                    return Ok(());
+                    continue;
                 }
             }
-        }
-        Err(error) => println!("error: {error}"),
-    }
+        } 
 
-    if !["hot", "new", "top"].contains(&sort_order) {
-        println!("Error: Invalid sort order. Valid values are: hot, new, top.");
-        return Ok(());
+        if !["hot", "new", "top"].contains(&sort_order) {
+            println!("Error: Invalid sort order. Valid values are: hot, new, top.");
+            continue;
+        }
+
+        let url = format!("https://www.reddit.com/r/{}/{}.json", subreddit, sort_order);
+
+        let response = ureq::get(&url).set("User-Agent", "reddit client").call();
+
+        if response.is_err() {
+            println!("Error: Request failed due to network or server issues.");
+            continue;
+        }
+
+        if response.as_ref().unwrap().status() == 404 {
+            println!("Error: Invalid subreddit or Reddit API issue.");
+            continue;
+        }
+
+        let json: Value = response.unwrap().into_json().unwrap_or(Value::Null);
+
+        if json["data"]["children"].is_null() || json["data"]["children"].as_array().unwrap().is_empty() {
+            println!("Error: Invalid subreddit or Reddit API issue.");
+            continue;
+        }
+
+        break;
     }
 
     let url = format!("https://www.reddit.com/r/{}/{}.json", subreddit, sort_order);
-
-    let response = ureq::get(&url).set("User-Agent", "reddit client").call();
-
-    if response.is_err() {
-        println!("Error: Request failed due to network or server issues.");
-        return Ok(());
-    }
-
-    let status = response.as_ref().unwrap().status();
-
-    if status == 404 {
-        println!("Error: Invalid subreddit or Reddit API issue.");
-        return Ok(());
-    }
-
-    if response.is_ok() {
-        let json: Value = response.unwrap().into_json().unwrap_or(Value::Null);
-
-        if json["data"]["children"].is_null()
-            || json["data"]["children"].as_array().unwrap().is_empty()
-        {
-            println!("Error: Invalid subreddit or Reddit API issue.");
-            return Ok(());
-        }
-    }
-
     let mut seen_posts: HashSet<String> = HashSet::new();
 
     thread::spawn(move || {
         let mut input = String::new();
         loop {
-            match io::stdin().read_line(&mut input) {
-                Ok(_) => {
-                    if input.trim() == "exit" {
-                        std::process::exit(0);
-                    }
+            if io::stdin().read_line(&mut input).is_ok() {
+                if input.trim() == "exit" {
+                    std::process::exit(0);
                 }
-                Err(error) => println!("error: {error}"),
             }
         }
     });
@@ -87,9 +87,9 @@ fn main() -> Result<(), ureq::Error> {
         let response = ureq::get(&url).set("User-Agent", "reddit client").call();
 
         if response.is_ok() {
-            let json: serde_json::Value = response.unwrap().into_json().unwrap_or_else(|_| {
+            let json: Value = response.unwrap().into_json().unwrap_or_else(|_| {
                 println!("Error: Unable to parse the response from Reddit.");
-                return Value::Null;
+                Value::Null
             });
 
             if json == Value::Null {
